@@ -1,7 +1,7 @@
 # Calliope: The AI Dev Platform for Builders
 
 ## 👋 χαῖρε / hola / hello  
-Welcome to **Calliope.ai** — your all-in-one development playground for building, testing, and shipping AI applications with zero hassle and complete control.
+**Calliope.ai** is an all-in-one development platform for building, testing, and shipping AI applications with zero hassle and complete control.
 
 Built on open tooling. Powered by commercial and open models. Secured by design.  
 Whether you're running RAG pipelines, hosting custom LLMs, or just tinkering in notebooks, Calliope gives you the tools, agents, and infrastructure to build securely and move fast.
