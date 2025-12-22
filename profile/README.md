@@ -46,9 +46,9 @@ Calliope is built on open tooling and designed to be forked, extended, self-host
 
 ## 🛠️ Get Started
 
-Docs and installers coming soon at [calliope.dev](https://calliope.dev)  
-Join the early access waitlist at [calliope.ai](https://calliope.ai)  
-Questions? → [hello@calliope.ai](mailto:hello@calliope.ai)
+Documentation at [docs.calliope.ai](https://docs.calliope.ai)
+Desktop apps available at [calliope-ai-desktop-releases](https://github.com/CalliopeAI/calliope-ai-desktop-releases)
+Questions? → [support@calliope.ai](mailto:support@calliope.ai)
 
 ## 👀 What’s Next
 
@@ -70,10 +70,12 @@ Actively building:
 
 ## 🗣️ Stay In The Loop
 
-- [🌐 calliope.ai](https://calliope.ai)  
-- [📣 Twitter/X (coming soon)](https://twitter.com/)  
-- [💬 Discord (coming soon)](https://discord.com/)  
-- [📘 Docs → calliope.dev (coming soon)](https://discord.com/)
+- [🌐 calliope.ai](https://calliope.ai)
+- [📣 Twitter/X](https://x.com/calliopelabs)
+- [💬 Discord](https://discord.gg/Z9bbbE6hJv)
+- [💼 LinkedIn](https://www.linkedin.com/company/calliopelabsinc/)
+- [📘 Docs](https://docs.calliope.ai)
+- [🐙 GitHub](https://github.com/CalliopeAI)
 
 ## 👋 Calliope is for builders.
 
