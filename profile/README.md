@@ -1,4 +1,4 @@
-# Calliope: The AI Dev Platform for Builders
+# Calliope: The AI Workbench
 
 ## 👋 χαῖρε / hola / hello  
 **Calliope.ai** is an all-in-one development platform for building, testing, and shipping AI applications with zero hassle and complete control.
