@@ -38,6 +38,10 @@ on:
         description: 'Extra build-args (multiline KEY=VALUE), passed verbatim'
         type: string
         default: ''
+      pre_build_run:
+        description: 'Shell script run in the repo root after checkout, before the Docker build (e.g. vendor an upstream into the build context)'
+        type: string
+        default: ''
       push_image:
         type: boolean
         default: true
@@ -84,6 +88,10 @@ jobs:
       - name: Log in to Amazon ECR
         id: ecr-login
         uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Pre-build hook
+        if: ${{ inputs.pre_build_run != '' }}
+        run: ${{ inputs.pre_build_run }}
 
       - name: Resolve flavor (prefix, floating tag, dockerfile, cache scope)
         id: flv
