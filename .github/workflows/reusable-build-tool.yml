@@ -26,6 +26,14 @@ on:
       platforms:
         type: string
         default: 'linux/amd64'
+      runs_on:
+        description: 'Runner label; use a larger runner for heavy images'
+        type: string
+        default: 'ubuntu-latest'
+      free_disk:
+        description: 'Reclaim runner disk before build (needed for large images)'
+        type: boolean
+        default: false
       build_args:
         description: 'Extra build-args (multiline KEY=VALUE), passed verbatim'
         type: string
@@ -43,7 +51,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runs_on }}
     permissions:
       contents: read
     strategy:
@@ -51,6 +59,13 @@ jobs:
       matrix:
         flavor: ${{ fromJSON(inputs.flavors) }}
     steps:
+      - name: Free disk space
+        if: ${{ inputs.free_disk }}
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL || true
+          sudo docker image prune --all --force || true
+          df -h
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
