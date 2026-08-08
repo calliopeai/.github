@@ -1,0 +1,124 @@
+# Central reusable build for every Calliope hub tool image.
+# Emits: sha-<short7> (immutable, every build) + latest (default branch only).
+# Flavored tools emit <flavor>-sha-<short7> + <flavor>-latest per matrix entry.
+# NEVER emits stable/canary/experimental — those are promote-only (reusable-promote.yml).
+name: reusable-build-tool
+
+on:
+  workflow_call:
+    inputs:
+      image:
+        description: 'ECR repository / image name, e.g. calliope-browser'
+        type: string
+        required: true
+      flavors:
+        description: 'JSON array of flavor tokens; ["__plain__"] for single-image tools'
+        type: string
+        default: '["__plain__"]'
+      context:
+        description: 'Docker build context'
+        type: string
+        default: '.'
+      dockerfile:
+        description: 'Dockerfile path; may contain the literal token {flavor}'
+        type: string
+        default: 'Dockerfile'
+      platforms:
+        type: string
+        default: 'linux/amd64'
+      build_args:
+        description: 'Extra build-args (multiline KEY=VALUE), passed verbatim'
+        type: string
+        default: ''
+      push_image:
+        type: boolean
+        default: true
+    secrets:
+      AWS_ACCESS_KEY_ID:
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        required: true
+      AWS_REGION:
+        required: false
+
+concurrency:
+  group: build-${{ inputs.image }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        flavor: ${{ fromJSON(inputs.flavors) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION || 'us-west-2' }}
+
+      - name: Log in to Amazon ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Resolve flavor (prefix, floating tag, dockerfile, cache scope)
+        id: flv
+        run: |
+          if [ "${{ matrix.flavor }}" = "__plain__" ]; then
+            echo "sha_prefix=sha-"       >> "$GITHUB_OUTPUT"
+            echo "floating=latest"       >> "$GITHUB_OUTPUT"
+            echo "scope=default"         >> "$GITHUB_OUTPUT"
+            DF="${{ inputs.dockerfile }}"
+          else
+            echo "sha_prefix=${{ matrix.flavor }}-sha-" >> "$GITHUB_OUTPUT"
+            echo "floating=${{ matrix.flavor }}-latest" >> "$GITHUB_OUTPUT"
+            echo "scope=${{ matrix.flavor }}"           >> "$GITHUB_OUTPUT"
+            DF="${{ inputs.dockerfile }}"
+            DF="${DF//\{flavor\}/${{ matrix.flavor }}}"
+          fi
+          echo "dockerfile=$DF" >> "$GITHUB_OUTPUT"
+
+      - name: Compute image tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.ecr-login.outputs.registry }}/${{ inputs.image }}
+          tags: |
+            type=sha,format=short,prefix=${{ steps.flv.outputs.sha_prefix }}
+            type=raw,value=${{ steps.flv.outputs.floating }},enable=${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ inputs.context }}
+          file: ${{ steps.flv.outputs.dockerfile }}
+          platforms: ${{ inputs.platforms }}
+          push: ${{ inputs.push_image && github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            GIT_COMMIT=${{ github.sha }}
+            ${{ inputs.build_args }}
+          cache-from: type=gha,scope=${{ inputs.image }}-${{ steps.flv.outputs.scope }}
+          cache-to: type=gha,mode=max,scope=${{ inputs.image }}-${{ steps.flv.outputs.scope }}
+
+      - name: Summary
+        run: |
+          {
+            echo "## Build — \`${{ inputs.image }}\` (${{ matrix.flavor }})"
+            echo "**Tags:** ${{ steps.meta.outputs.tags }}"
+            echo "**Digest:** \`${{ steps.build.outputs.digest }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,89 @@
+# Central reusable promote for every Calliope tool image.
+# Manifest re-tag (digest copy) of an IMMUTABLE sha onto a channel pointer.
+# Source is ALWAYS sha-<short7> (never latest) — SPEC 1 §3.2.
+# channel ∈ {canary, stable, experimental}. Flavor-aware.
+name: reusable-promote
+
+on:
+  workflow_call:
+    inputs:
+      image:
+        description: 'ECR repository / image name, e.g. calliope-browser'
+        type: string
+        required: true
+      source_sha:
+        description: '7-char short git sha of the build to bless (no prefix)'
+        type: string
+        required: true
+      channel:
+        description: 'Target channel: canary | stable | experimental'
+        type: string
+        required: true
+      flavors:
+        description: 'JSON array of flavor tokens; ["__plain__"] for single-image tools'
+        type: string
+        default: '["__plain__"]'
+    secrets:
+      AWS_ACCESS_KEY_ID:
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        required: true
+      AWS_REGION:
+        required: false
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        flavor: ${{ fromJSON(inputs.flavors) }}
+    steps:
+      - name: Validate channel
+        run: |
+          case "${{ inputs.channel }}" in
+            canary|stable|experimental) ;;
+            *) echo "::error::illegal channel '${{ inputs.channel }}' (canary|stable|experimental)"; exit 1 ;;
+          esac
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION || 'us-west-2' }}
+
+      - name: Promote ${{ inputs.image }} (${{ matrix.flavor }}) -> ${{ inputs.channel }}
+        run: |
+          set -euo pipefail
+          if [ "${{ matrix.flavor }}" = "__plain__" ]; then
+            SRC="sha-${{ inputs.source_sha }}"
+            DST="${{ inputs.channel }}"
+          else
+            SRC="${{ matrix.flavor }}-sha-${{ inputs.source_sha }}"
+            DST="${{ matrix.flavor }}-${{ inputs.channel }}"
+          fi
+          echo "Promoting ${{ inputs.image }}:$SRC -> :$DST"
+
+          MANIFEST=$(aws ecr batch-get-image \
+            --repository-name "${{ inputs.image }}" \
+            --image-ids imageTag="$SRC" \
+            --query 'images[0].imageManifest' --output text)
+          if [ -z "$MANIFEST" ] || [ "$MANIFEST" = "None" ]; then
+            echo "::error::source ${{ inputs.image }}:$SRC not found (promote refuses to invent it)"; exit 1
+          fi
+
+          SRC_DIGEST=$(aws ecr describe-images --repository-name "${{ inputs.image }}" \
+            --image-ids imageTag="$SRC" --query 'imageDetails[0].imageDigest' --output text)
+
+          aws ecr put-image --repository-name "${{ inputs.image }}" \
+            --image-tag "$DST" --image-manifest "$MANIFEST" || true   # tag may already exist
+
+          DST_DIGEST=$(aws ecr describe-images --repository-name "${{ inputs.image }}" \
+            --image-ids imageTag="$DST" --query 'imageDetails[0].imageDigest' --output text)
+
+          [ "$SRC_DIGEST" = "$DST_DIGEST" ] || { echo "::error::digest mismatch after promote"; exit 1; }
+          echo "OK: $DST -> $DST_DIGEST"
