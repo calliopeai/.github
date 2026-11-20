@@ -2,7 +2,8 @@
 # workflow (see confidential-terms/README.md). It fails a pull request or push
 # that adds a term from the CLIENT_DENYLIST organization secret, and passes
 # with a warning when the secret is unavailable (fork and Dependabot pull
-# requests, or before the secret is set).
+# requests, or before the secret is set). It is skipped in private
+# repositories.
 name: reusable-confidential-terms
 
 on:
@@ -18,14 +19,19 @@ permissions:
 jobs:
   scan:
     name: confidential terms
+    # Only public repositories need the check, and private ones (client work,
+    # private sources of public mirrors, projects made from public templates)
+    # legitimately contain the terms.
+    if: ${{ !github.event.repository.private }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       # Full history so the check can find the commits a push or pull request
       # adds; blob:none keeps large repositories cheap by loading file contents
-      # on demand. Credentials stay persisted (the default) because those
-      # on-demand loads need them in private repositories; the job runs
-      # nothing but git on the checkout, with a read-only token.
+      # on demand. Credentials stay persisted (the default): the job runs
+      # nothing but git on the checkout, with a read-only token, and
+      # persist-credentials: false fails the checkout in any repository that
+      # holds a gitlink without a .gitmodules entry.
       - name: Check out
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
