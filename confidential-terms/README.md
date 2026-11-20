@@ -54,7 +54,7 @@ on:
   pull_request:
     types: [opened, edited, reopened, synchronize]
   push:
-    branches: ['**']
+    branches: ["**"]
 
 permissions:
   contents: read
