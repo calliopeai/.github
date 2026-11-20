@@ -69,6 +69,10 @@ jobs:
 The secret is passed by name rather than with `secrets: inherit`, which only
 works within one organization and would hand over every other secret too.
 
+The job is skipped in private repositories, where the terms legitimately
+appear, so the caller can also live in a public template or in the private
+source of a public mirror: it only runs once the code is public.
+
 ## Local hooks
 
 From a clone of this repository, install into every clone under a directory
