@@ -1,0 +1,30 @@
+name: confidential-terms
+description: >
+  Fail a pull request or push that adds a confidential term. Needs a
+  full-history checkout (fetch-depth 0). See README.md.
+
+inputs:
+  denylist:
+    description: Newline-separated terms; when empty the check is skipped with a warning
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: Scan for confidential terms
+      shell: bash
+      env:
+        CLIENT_DENYLIST: ${{ inputs.denylist }}
+        CT_EVENT: ${{ github.event_name }}
+        CT_REF: ${{ github.ref }}
+        CT_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        CT_BEFORE: ${{ github.event.before }}
+        CT_AFTER: ${{ github.event.after }}
+        CT_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        CT_BASE_REF: ${{ github.event.pull_request.base.ref }}
+        CT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        CT_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        CT_PR_TITLE: ${{ github.event.pull_request.title }}
+        CT_PR_BODY: ${{ github.event.pull_request.body }}
+      run: bash "$GITHUB_ACTION_PATH/confidential-terms.sh" ci

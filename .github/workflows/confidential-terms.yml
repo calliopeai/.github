@@ -1,0 +1,45 @@
+# Tests the confidential-term check and runs this branch's copy of it on this
+# repository (other repositories call reusable-confidential-terms.yml).
+name: confidential-terms
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+  push:
+    branches: ['**']
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Lint
+        run: shellcheck confidential-terms/confidential-terms.sh confidential-terms/test.sh
+
+      - name: Test
+        run: bash confidential-terms/test.sh
+
+  scan:
+    name: confidential terms
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          filter: blob:none
+
+      - name: Scan for confidential terms
+        uses: ./confidential-terms
+        with:
+          denylist: ${{ secrets.CLIENT_DENYLIST }}
