@@ -1,0 +1,38 @@
+# Central confidential-term check. Each public repository calls it from a thin
+# workflow (see confidential-terms/README.md). It fails a pull request or push
+# that adds a term from the CLIENT_DENYLIST organization secret, and passes
+# with a warning when the secret is unavailable (fork and Dependabot pull
+# requests, or before the secret is set).
+name: reusable-confidential-terms
+
+on:
+  workflow_call:
+    secrets:
+      CLIENT_DENYLIST:
+        description: Newline-separated confidential terms
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    name: confidential terms
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # Full history so the check can find the commits a push or pull request
+      # adds; blob:none keeps large repositories cheap by loading file contents
+      # on demand. Credentials stay persisted (the default) because those
+      # on-demand loads need them in private repositories; the job runs
+      # nothing but git on the checkout, with a read-only token.
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          filter: blob:none
+
+      - name: Scan for confidential terms
+        uses: calliopeai/.github/confidential-terms@main
+        with:
+          denylist: ${{ secrets.CLIENT_DENYLIST }}
