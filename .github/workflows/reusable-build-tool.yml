@@ -52,6 +52,12 @@ on:
         required: true
       AWS_REGION:
         required: false
+      PAT_CALLIOPE_CI:
+        required: false
+        description: >-
+          Read access to private calliopeai packages. Offered to the image build as the BuildKit
+          secret `gh_token` (never a build-arg), so a Dockerfile that installs a private package
+          mounts it with RUN --mount=type=secret,id=gh_token. Builds that do not mount it ignore it.
 
 jobs:
   build:
@@ -126,6 +132,8 @@ jobs:
 
       - name: Build and push
         id: build
+        env:
+          PAT_CALLIOPE_CI: ${{ secrets.PAT_CALLIOPE_CI }}
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: ${{ inputs.context }}
@@ -137,6 +145,8 @@ jobs:
           build-args: |
             GIT_COMMIT=${{ github.sha }}
             ${{ inputs.build_args }}
+          secret-envs: |
+            gh_token=PAT_CALLIOPE_CI
           cache-from: type=gha,scope=${{ inputs.image }}-${{ steps.flv.outputs.scope }}
           cache-to: type=gha,mode=max,scope=${{ inputs.image }}-${{ steps.flv.outputs.scope }}
 
